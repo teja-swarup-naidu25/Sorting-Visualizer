@@ -1,0 +1,262 @@
+#include <SDL2/SDL.h>
+#include <cstdlib> 
+#include <iostream> 
+#include <ctime> 
+#include <vector>
+
+using namespace std;
+
+// Global variables (very common for student projects)
+const int window_height = 900;
+const int window_width = 600;
+const int array_size = 100;
+
+class SortingVisualizer {
+public:
+    SDL_Window* window;
+    SDL_Renderer* renderer;
+    vector<int> arr;
+
+    // Constructor to initialize array size
+    SortingVisualizer() {
+        arr.resize(array_size);
+        window = NULL;
+        renderer = NULL;
+    }
+
+    void setup() {
+        SDL_CreateWindowAndRenderer(window_width, window_height, 0, &window, &renderer);
+        SDL_RenderSetScale(renderer, 6, 1);
+        srand(time(0));
+        
+        // Fill the array with random numbers
+        for (int i = 0; i < array_size; i++) {
+            arr[i] = rand() % (window_height - 1) + 1;
+        }
+    }
+
+    void cleanup() {
+        SDL_DestroyWindow(window);
+        SDL_DestroyRenderer(renderer);
+    }
+
+    // Function to draw the current state of the array
+    void draw(int red = -1, int blue = -1) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+        
+        for (int i = 0; i < array_size; i++) {
+            if (i == red) {
+                SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+            } else if (i == blue) {
+                SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+            } else {
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            }
+            SDL_RenderDrawLine(renderer, i, window_height, i, window_height - arr[i]);
+        }
+        SDL_RenderPresent(renderer);
+    }
+
+    // Green sweep animation at the end
+    void drawComplete() {
+        for (int i = 0; i < array_size; i++) {
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            SDL_RenderClear(renderer);
+            
+            for (int j = 0; j < i; j++) {
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                SDL_RenderDrawLine(renderer, j, window_height, j, window_height - arr[j]);
+            }
+            for (int j = i; j < min(i + 20, array_size); j++) {
+                SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+                SDL_RenderDrawLine(renderer, j, window_height, j, window_height - arr[j]);
+            }
+            for (int j = i + 20; j < array_size; j++) {
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                SDL_RenderDrawLine(renderer, j, window_height, j, window_height - arr[j]);
+            }
+            
+            SDL_RenderPresent(renderer);
+            SDL_Delay(15);
+        }
+    }
+
+    // --- SORTING ALGORITHMS ---
+
+    void bubbleSort() {
+        for (int i = 0; i < arr.size(); i++) {
+            for (int j = i + 1; j < arr.size(); j++) {
+                if (arr[j] < arr[i]) {
+                    swap(arr[i], arr[j]);
+                }
+                draw();
+                SDL_Delay(1);
+            }
+        }
+        drawComplete();
+    }
+
+    void selectionSort() {
+        for (int i = 0; i < array_size; i++) {
+            int min_index = i;
+            for (int j = i + 1; j < array_size; j++) {
+                if (arr[j] < arr[min_index]) {
+                    min_index = j;
+                }
+            }
+            swap(arr[min_index], arr[i]);
+            draw();
+            SDL_Delay(50);
+        }
+        drawComplete();
+    }
+
+    void insertionSort() {
+        for (int i = 1; i < array_size; i++) {
+            int val = arr[i];
+            int j = i - 1;
+            while (val < arr[j] && j >= 0) {
+                arr[j + 1] = arr[j];
+                j--;
+                draw();
+                SDL_Delay(20);
+            }
+            arr[j + 1] = val;
+            draw();
+            SDL_Delay(20);
+        }
+        drawComplete();
+    }
+
+    void merge(int p, int q, int r) {
+        int n1 = q - p + 1;
+        int n2 = r - q;
+        vector<int> L(n1), M(n2);
+        
+        for (int i = 0; i < n1; i++) L[i] = arr[p + i];
+        for (int j = 0; j < n2; j++) M[j] = arr[q + 1 + j];
+        
+        int i = 0, j = 0, k = p;
+        while (i < n1 && j < n2) {
+            if (L[i] <= M[j]) {
+                arr[k] = L[i];
+                i++;
+            } else {
+                arr[k] = M[j];
+                j++;
+            }
+            k++;
+            draw();
+            SDL_Delay(30);
+        }
+        while (i < n1) {
+            arr[k] = L[i];
+            i++;
+            k++;
+            draw();
+            SDL_Delay(30);
+        }
+        while (j < n2) {
+            arr[k] = M[j];
+            j++;
+            k++;
+            draw();
+            SDL_Delay(30);
+        }
+    }
+
+    void mergeSort(int l, int r) {
+        if (l < r) {
+            int m = l + (r - l) / 2;
+            mergeSort(l, m);
+            mergeSort(m + 1, r);
+            merge(l, m, r);
+            if (l == 0 && r == array_size - 1) {
+                drawComplete();
+            }
+        }
+    }
+
+    int partition(int low, int high) {
+        int pivot = arr[high];
+        int i = (low - 1);
+        for (int j = low; j < high; j++) {
+            if (arr[j] <= pivot) {
+                i++;
+                swap(arr[i], arr[j]);
+            }
+        }
+        swap(arr[i + 1], arr[high]);
+        draw();
+        SDL_Delay(150);
+        return (i + 1);
+    }
+
+    void quickSort(int low, int high) {
+        if (low < high) {
+            int pi = partition(low, high);
+            quickSort(low, pi - 1);
+            quickSort(pi + 1, high);
+            if (low == 0 && high == array_size - 1) {
+                drawComplete();
+            }
+        }
+    }
+};
+
+int main() {
+    SortingVisualizer viz;
+    int choice;
+
+    cout << "Welcome to the Sorting Visualiser - \n";
+    cout << "You can visualise the following sorting types: \n";
+    cout << "Bubble Sort (Press 1 and ENTER to run Bubble Sort)\n";
+    cout << "Selection Sort (Press 2 and ENTER to run Selection Sort)\n";
+    cout << "Insertion Sort (Press 3 and ENTER to run Insertion Sort)\n";
+    cout << "Merge Sort (Press 4 and ENTER to run Merge Sort)\n";
+    cout << "Quick Sort (Press 5 and ENTER to run Quick Sort)\n";
+    cout << "Press -1 and ENTER to exit\n";
+
+    do {
+        cout << "Enter your option: ";
+        cin >> choice;
+
+        if (choice == -1) {
+            break;
+        }
+
+        viz.setup();
+
+        switch (choice) {
+            case 1:
+                viz.bubbleSort();
+                break;
+            case 2:
+                viz.selectionSort();
+                break;
+            case 3:
+                viz.insertionSort();
+                break;
+            case 4:
+                viz.mergeSort(0, array_size - 1);
+                break;
+            case 5:
+                viz.quickSort(0, array_size - 1);
+                break;
+            default:
+                cout << "There is no such option\n";
+                break;
+        }
+
+        viz.cleanup();
+        
+        cout << "Press -1 and ENTER to exit\n";
+        cout << "If you want to visualise any other Algorithm, press their corresponding number: ";
+        
+    } while (choice != -1);
+
+    cout << "Thank you. Hoping that you've enjoyed the visualisations\n";
+
+    return 0;
+}
